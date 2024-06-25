@@ -103,4 +103,4 @@ python blutter.py path\to\lib\arm64-v8a build\vs --vs-sln
   - Object modification
 - Obfuscated app (still missing many functions)
 - Reading iOS binary
-- Input as apk or ipa
+- Input as ipa
