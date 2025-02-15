@@ -27,6 +27,8 @@ def get_default_src_files(gni_file):
     for key in objs.keys():
         if key.endswith('_cc_files'):
             return objs[key]
+        elif key.endswith('_sources'):
+            return objs[key]
 
 def get_src_from_path(path):
     srcs = glob.glob(os.path.join(path, '*.cc'))
@@ -75,6 +77,14 @@ for lib in ('async', 'concurrent', 'core', 'developer', 'ffi', 'isolate', 'math'
     if os.path.isfile(gni_file):
         srcs = get_default_src_files(gni_file)
         cc_srcs.extend([ os.path.join(BASEDIR, 'lib', src) for src in srcs if src.endswith('.cc') ])
+
+# other vm sources
+for lib in ['regexp']:
+    gni_file = os.path.join(BASEDIR, 'vm', lib, lib+'_sources.gni')
+    if os.path.isfile(gni_file):
+        srcs = get_default_src_files(gni_file)
+        cc_srcs.extend([ os.path.join(BASEDIR, 'vm', lib, src) for src in srcs if src.endswith('.cc') ])
+
 
 double_conversion_dir = BASEDIR+'/third_party/double-conversion/src'
 if not os.path.isdir(double_conversion_dir):
