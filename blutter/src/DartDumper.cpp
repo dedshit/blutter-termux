@@ -675,6 +675,29 @@ std::string DartDumper::ObjectToString(dart::Object& obj, bool simpleForm, bool 
 		}
 		return fmt::format("List{}({}) [{}]", typeArg->ToString(), arr_len, ss.str());
 	}
+	case dart::kArrayCid: { // internal class _List (90)
+        const auto& list = dart::Array::Cast(obj);
+        const auto list_len = list.Length();
+        std::ostringstream ss;
+        if (list_len > 0) {
+            auto listPtr = dart::Array::DataOf(list.ptr());
+            for (intptr_t i = 0; i < list_len; i++) {
+                if (i != 0)
+                    ss << ", ";
+
+                if (listPtr->IsHeapObject()) {
+                    obj = listPtr->Decompress(app.heap_base());
+                    ss << ObjectToString(obj, simpleForm, nestedObj, depth + 1);
+                }
+                else {
+                    obj = listPtr->DecompressSmi();
+                    ss << std::hex << std::showbase << dart::Smi::Cast(obj).Value();
+                }
+                listPtr++;
+            }
+        }
+        return fmt::format("List({}) [{}]", list_len, ss.str());
+    }
 #ifdef HAS_RECORD_TYPE
 	case dart::kRecordCid: {
 		const auto& record = dart::Record::Cast(obj);
