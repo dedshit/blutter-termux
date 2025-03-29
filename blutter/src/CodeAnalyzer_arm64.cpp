@@ -237,6 +237,8 @@ public:
 	std::unique_ptr<AllocateStackInstr> processAllocateStackInstr(AsmIterator& insn);
 	std::unique_ptr<CheckStackOverflowInstr> processCheckStackOverflowInstr(AsmIterator& insn);
 	std::unique_ptr<CallLeafRuntimeInstr> processCallLeafRuntime(AsmIterator& insn);
+	std::unique_ptr<ILInstr> processObjectPoolInstr(AsmIterator& insn);
+	std::unique_ptr<LoadValueInstr> processLoadValueNoObjectPoolInstr(AsmIterator& insn);
 	std::unique_ptr<LoadValueInstr> processLoadValueInstr(AsmIterator& insn);
 	std::unique_ptr<ClosureCallInstr> processClosureCallInstr(AsmIterator& insn);
 	std::unique_ptr<MoveRegInstr> processMoveRegInstr(AsmIterator& insn);
@@ -260,8 +262,10 @@ public:
 	std::unique_ptr<ILInstr> processLoadStore(AsmIterator& insn);
 
 	struct ObjectPoolInstr {
+		// dstReg is srcReg when isWrite is true
 		A64::Register dstReg;
 		VarItem item{};
+		bool isWrite;
 		bool IsSet() const { return dstReg.IsSet(); }
 	};
 
@@ -299,7 +303,8 @@ static const AsmMatcherFn matcherFns[] = {
 	(AsmMatcherFn) &FunctionAnalyzer::processAllocateStackInstr,
 	(AsmMatcherFn) &FunctionAnalyzer::processCheckStackOverflowInstr,
 	(AsmMatcherFn) &FunctionAnalyzer::processCallLeafRuntime,
-	(AsmMatcherFn) &FunctionAnalyzer::processLoadValueInstr,
+	(AsmMatcherFn) &FunctionAnalyzer::processObjectPoolInstr,
+	(AsmMatcherFn) &FunctionAnalyzer::processLoadValueNoObjectPoolInstr,
 	(AsmMatcherFn) &FunctionAnalyzer::processDecompressPointerInstr,
 	(AsmMatcherFn) &FunctionAnalyzer::processClosureCallInstr,
 	(AsmMatcherFn) &FunctionAnalyzer::processSaveRegisterInstr,
@@ -323,6 +328,7 @@ static const AsmMatcherFn matcherFns[] = {
 FunctionAnalyzer::ObjectPoolInstr FunctionAnalyzer::getObjectPoolInstruction(AsmIterator& insn)
 {
 	int64_t offset = 0;
+	bool isWrite = false;
 	A64::Register dstReg;
 	InsnMarker marker(insn);
 	if (insn.id() == ARM64_INS_LDR) {
@@ -375,6 +381,11 @@ FunctionAnalyzer::ObjectPoolInstr FunctionAnalyzer::getObjectPoolInstruction(Asm
 				INSN_ASSERT(insn.ops(2).type == ARM64_OP_IMM);
 				offset = base + insn.ops(2).imm;
 			}
+			else if (insn.id() == ARM64_INS_STR) {
+				INSN_ASSERT(insn.ops(1).mem.base == offset_reg);
+				offset = base + insn.ops(1).mem.disp;
+				isWrite = true;
+			}
 			else {
 				INSN_ASSERT(false);
 			}
@@ -401,6 +412,20 @@ FunctionAnalyzer::ObjectPoolInstr FunctionAnalyzer::getObjectPoolInstruction(Asm
 				dstReg = A64::Register{ insn.ops(0).reg };
 				++insn;
 			}
+			if (insn.id() == ARM64_INS_STR && insn.ops(1).mem.base == CSREG_DART_PP && insn.ops(1).mem.index == offset_reg) {
+				dstReg = A64::Register{ insn.ops(0).reg };
+				++insn;
+				isWrite = true;
+			}
+		}
+	}
+	else if (insn.id() == ARM64_INS_STR) {
+		// PP offset less than 12 bits (for store)
+		if (insn.ops(1).mem.base == CSREG_DART_PP && insn.ops(1).mem.index == ARM64_REG_INVALID) {
+			offset = insn.ops(1).mem.disp;
+			dstReg = A64::Register{ insn.ops(0).reg };
+			++insn;
+			isWrite = true;
 		}
 	}
 
@@ -410,7 +435,7 @@ FunctionAnalyzer::ObjectPoolInstr FunctionAnalyzer::getObjectPoolInstruction(Asm
 
 	setAsmTextDataPool(marker.Take(), offset);
 	auto val = getPoolObject(app, offset, dstReg);
-	return ObjectPoolInstr{ dstReg, VarItem{VarStorage::NewPool((int)offset), val} };
+	return ObjectPoolInstr{ dstReg, VarItem{VarStorage::NewPool((int)offset), val}, isWrite };
 }
 
 void FunctionAnalyzer::printInsnException(InsnException& e)
@@ -2112,14 +2137,24 @@ std::unique_ptr<SetupParametersInstr> FunctionAnalyzer::processPrologueParameter
 	return std::make_unique<SetupParametersInstr>(insn.Wrap(marker.Take()), &fnInfo->params);
 }
 
-std::unique_ptr<LoadValueInstr> FunctionAnalyzer::processLoadValueInstr(AsmIterator& insn)
+std::unique_ptr<ILInstr> FunctionAnalyzer::processObjectPoolInstr(AsmIterator& insn)
 {
 	const auto ins0_addr = insn.address();
 	auto objPoolInstr = getObjectPoolInstruction(insn);
 	if (objPoolInstr.IsSet()) {
+		if (objPoolInstr.isWrite) {
+			return std::make_unique<StoreObjectPoolInstr>(insn.Wrap(ins0_addr), objPoolInstr.dstReg, objPoolInstr.item.storage.offset);
+		}
 		// TODO: load object might be start of Dart instruction, check next instruction
 		return std::make_unique<LoadValueInstr>(insn.Wrap(ins0_addr), objPoolInstr.dstReg, std::move(objPoolInstr.item));
 	}
+
+	return nullptr;
+}
+
+std::unique_ptr<LoadValueInstr> FunctionAnalyzer::processLoadValueNoObjectPoolInstr(AsmIterator& insn)
+{
+	const auto ins0_addr = insn.address();
 
 	int64_t imm = 0;
 	A64::Register dstReg;
@@ -2173,6 +2208,19 @@ std::unique_ptr<LoadValueInstr> FunctionAnalyzer::processLoadValueInstr(AsmItera
 	}
 
 	return nullptr;
+}
+
+std::unique_ptr<LoadValueInstr> FunctionAnalyzer::processLoadValueInstr(AsmIterator& insn)
+{
+	// load from object pool is also LoadValue
+	auto il = processObjectPoolInstr(insn);
+	if (il != nullptr) {
+		if (il->Kind() != ILInstr::LoadValue)
+			return nullptr;
+		return std::unique_ptr<LoadValueInstr>((LoadValueInstr*)il.release());
+	}
+
+	return processLoadValueNoObjectPoolInstr(insn);
 }
 
 std::unique_ptr<ClosureCallInstr> FunctionAnalyzer::processClosureCallInstr(AsmIterator& insn)
