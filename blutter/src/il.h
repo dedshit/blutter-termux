@@ -191,7 +191,7 @@ public:
 	StoreObjectPoolInstr& operator=(const StoreObjectPoolInstr&) = delete;
 
 	virtual std::string ToString() {
-		return std::format("[PP+{:#x}] = {}", offset, srcReg.Name());
+		return fmt::format("[PP+{:#x}] = {}", offset, srcReg.Name());
 	}
 
 	A64::Register srcReg;
