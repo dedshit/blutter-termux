@@ -116,4 +116,6 @@ target_compile_definitions(${BINNAME} PRIVATE ${defines})
 
 target_compile_options(${BINNAME} PRIVATE ${cc_opts})
 
-install (TARGETS ${BINNAME} RUNTIME DESTINATION "${PROJECT_SOURCE_DIR}/../bin")
+cmake_path(SET DEST_DIR NORMALIZE "${PROJECT_SOURCE_DIR}/../bin")
+
+install (TARGETS ${BINNAME} RUNTIME DESTINATION ${DEST_DIR})
