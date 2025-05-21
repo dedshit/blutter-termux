@@ -1,6 +1,5 @@
-# 1
 # this is CMakeLists.txt template file for building dart AOT VM
-cmake_minimum_required (VERSION 3.20)
+cmake_minimum_required (VERSION 3.31.6)
 
 project(dartvmVERSION_PLACE_HOLDER)
 if (${PROJECT_NAME} MATCHES "_PLACE_HOLDER")
@@ -145,7 +144,6 @@ install(EXPORT "${EXPORT_NAME}"
 	FILE "${EXPORT_NAME}.cmake"
 	DESTINATION lib/cmake/${LIBNAME}
 )
-
 
 include(CMakePackageConfigHelpers)
 # generate the config file that is includes the exports
