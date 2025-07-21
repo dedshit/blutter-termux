@@ -27,8 +27,6 @@ def get_default_src_files(gni_file):
     for key in objs.keys():
         if key.endswith('_cc_files'):
             return objs[key]
-        elif key.endswith('_sources'):
-            return objs[key]
 
 def get_src_from_path(path):
     srcs = glob.glob(os.path.join(path, '*.cc'))
@@ -49,9 +47,7 @@ else:
 
 cc_srcs = []
 hdrs = []
-for path in ('vm', 'platform', 'vm/heap', 'vm/ffi'):
-    if path[-1] == '/':
-        path = path[:-1]
+for path in ('vm', 'platform', 'vm/heap', 'vm/ffi', 'vm/regexp'):
     path = os.path.join(BASEDIR, path)
     if not os.path.isdir(path):
         continue
@@ -64,11 +60,11 @@ for path in ('vm', 'platform', 'vm/heap', 'vm/ffi'):
 
 # extra source files
 extra_files = ( 'vm/version.cc', 'vm/dart_api_impl.cc', 'vm/native_api_impl.cc',
-        'vm/compiler/runtime_api.cc', 'vm/compiler/jit/compiler.cc')
+        'vm/compiler/runtime_api.cc', 'vm/compiler/jit/compiler.cc', 'platform/no_tsan.cc')
 for name in extra_files:
     cc_srcs.append(os.path.join(BASEDIR, name))
 
-# extra public heaer
+# extra public header
 hdrs.append(os.path.join(BASEDIR, 'vm/version.h'))
 
 # other libraries
@@ -77,14 +73,6 @@ for lib in ('async', 'concurrent', 'core', 'developer', 'ffi', 'isolate', 'math'
     if os.path.isfile(gni_file):
         srcs = get_default_src_files(gni_file)
         cc_srcs.extend([ os.path.join(BASEDIR, 'lib', src) for src in srcs if src.endswith('.cc') ])
-
-# other vm sources
-for lib in ['regexp']:
-    gni_file = os.path.join(BASEDIR, 'vm', lib, lib+'_sources.gni')
-    if os.path.isfile(gni_file):
-        srcs = get_default_src_files(gni_file)
-        cc_srcs.extend([ os.path.join(BASEDIR, 'vm', lib, src) for src in srcs if src.endswith('.cc') ])
-
 
 double_conversion_dir = BASEDIR+'/third_party/double-conversion/src'
 if not os.path.isdir(double_conversion_dir):

@@ -173,15 +173,11 @@ def cmake_blutter(input: BlutterInput):
 
     my_env = None
     if platform.system() == "Darwin":
-        llvm_path = (
-            subprocess.run(
-                ["brew", "--prefix", "llvm@16"], capture_output=True, check=True
-            )
-            .stdout.decode()
-            .strip()
-        )
-        clang_file = os.path.join(llvm_path, "bin", "clang")
-        my_env = {**os.environ, "CC": clang_file, "CXX": clang_file + "++"}
+        mac_ver = int(platform.mac_ver()[0].split('.', 1)[0])
+        if mac_ver < 15:
+            llvm_path = subprocess.run(['brew', '--prefix', 'llvm@16'], capture_output=True, check=True).stdout.decode().strip()
+            clang_file = os.path.join(llvm_path, 'bin', 'clang')
+            my_env = {**os.environ, 'CC': clang_file, 'CXX': clang_file+'++'}
     # cmake -GNinja -Bbuild -DCMAKE_BUILD_TYPE=Release
     subprocess.run(
         [
