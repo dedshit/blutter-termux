@@ -60,7 +60,11 @@ for path in ('vm', 'platform', 'vm/heap', 'vm/ffi', 'vm/regexp'):
 
 # extra source files
 extra_files = ( 'vm/version.cc', 'vm/dart_api_impl.cc', 'vm/native_api_impl.cc',
-        'vm/compiler/runtime_api.cc', 'vm/compiler/jit/compiler.cc', 'platform/no_tsan.cc')
+        'vm/compiler/runtime_api.cc', 'vm/compiler/jit/compiler.cc')
+
+if os.path.exists(os.path.join(BASEDIR, "platform/no_tsan.cc")):
+    extra_files += ("platform/no_tsan.cc",)
+
 for name in extra_files:
     cc_srcs.append(os.path.join(BASEDIR, name))
 
