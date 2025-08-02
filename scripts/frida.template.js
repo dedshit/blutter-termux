@@ -16,7 +16,7 @@ function onLibappLoaded() {
 }
 
 function tryLoadLibapp() {
-    libapp = Module.findBaseAddress('libapp.so');
+    libapp = Process.getModuleByName('libapp.so').base;
     if (libapp === null)
         setTimeout(tryLoadLibapp, 500);    
     else
