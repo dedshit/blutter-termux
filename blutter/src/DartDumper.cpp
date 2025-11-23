@@ -321,7 +321,12 @@ std::vector<std::pair<intptr_t, std::string>> DartDumper::DumpStructHeaderFile(s
 			if (obj.IsUnlinkedCall()) {
 				const auto imm = pool.RawValueAt(i + 1);
 				auto dartFn = app.GetFunction(imm - app.base());
-				name = fmt::format("UnlinkedCall_{:#x}_{:#x}", offset, dartFn->Address(), offset);
+				if (!dartFn) {
+					name = fmt::format("UnlinkedCall_{:#x}", offset);
+				}
+				else {
+					name = fmt::format("UnlinkedCall_{:#x}_{:#x}", offset, dartFn->Address(), offset);
+				}
 			}
 			else {
 				// TODO: more meaningful variable name
@@ -945,6 +950,9 @@ std::string DartDumper::getPoolObjectDescription(intptr_t offset, bool simpleFor
 			ASSERT(pool.TypeAt(idx + 1) == dart::ObjectPool::EntryType::kImmediate);
 			const auto imm = pool.RawValueAt(idx + 1);
 			auto dartFn = app.GetFunction(imm - app.base());
+			if (!dartFn) {
+			    return fmt::format("[pp+{:#x}] UnlinkedCall", offset);
+			}
 			return fmt::format("[pp+{:#x}] UnlinkedCall: {:#x} - {}", offset, dartFn->Address(), dartFn->FullName().c_str());
 		}
 		return fmt::format("[pp+{:#x}] {}", offset, ObjectToString(obj, simpleForm));
