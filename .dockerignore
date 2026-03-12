@@ -1,0 +1,12 @@
+.git
+.gitignore
+bin
+build
+packages
+*.pyc
+__pycache__
+*.o
+*.a
+*.so
+*.exe
+.DS_Store

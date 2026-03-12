@@ -53,6 +53,30 @@ python scripts\init_env_win.py
 ```
 - Start "x64 Native Tools Command Prompt"
 
+### Docker
+- Build the Docker image:
+```
+docker build -t blutter .
+```
+- Run Blutter using the provided script:
+```
+docker/run.sh /path/to/lib out/
+```
+- The script accepts the same arguments as `blutter.py`:
+```
+docker/run.sh <indir> <outdir> [extra args...]
+```
+  - `indir`: Path to APK file or directory containing libapp.so and libflutter.so
+  - `outdir`: Output directory for analysis results
+  - `extra args`: Additional arguments to pass to blutter (e.g., `--no-analysis`, `--ida-fcn`)
+
+- Examples:
+```
+docker/run.sh /path/to/app.apk /path/to/output
+docker/run.sh /path/to/lib/arm64-v8a /path/to/output
+docker/run.sh /path/to/lib/arm64-v8a /path/to/output --no-analysis --ida-fcn
+```
+
 ### macOS Ventura and Sonoma (clang 16)
 - Install XCode
 - Install clang 16 and required tools
